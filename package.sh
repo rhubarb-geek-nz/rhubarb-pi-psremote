@@ -17,7 +17,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>
 #
-# $Id: package.sh 198 2022-09-25 11:56:06Z rhubarb-geek-nz $
+# $Id: package.sh 199 2022-09-29 23:48:06Z rhubarb-geek-nz $
 #
 
 cleanup()
@@ -40,6 +40,12 @@ CONFIGFILE=/etc/ssh/sshd_config
 
 mkdir control data
 
+if test -d "$CONFIGFILE.d"
+then
+	mkdir -p "data$CONFIGFILE.d"
+	echo "$CONFIGURATION" > "data$CONFIGFILE.d/50-$PKGNAME.conf"
+fi
+
 if dpkg --print-architecture 2>/dev/null
 then
 	if test -z "$MAINTAINER"
@@ -48,7 +54,12 @@ then
 		false
 	fi
 
-	cat > control/postinst << EOF
+	if test -d data/etc
+	then
+		DEPENDS="openssh-server (>= 7.3), powershell"
+	else
+		DEPENDS="openssh-server, powershell"
+		cat > control/postinst << EOF
 #!/bin/sh -e
 if grep "^$CONFIGURATION\$" $CONFIGFILE >/dev/null
 then
@@ -62,7 +73,7 @@ else
 fi
 EOF
 
-	cat > control/postrm << EOF
+		cat > control/postrm << EOF
 #!/bin/sh -e
 if grep "^$CONFIGURATION\$" $CONFIGFILE >/dev/null
 then
@@ -72,9 +83,8 @@ then
 fi
 EOF
 
-	chmod +x control/postinst control/postrm
-
-	mkdir -p data
+		chmod +x control/postinst control/postrm
+	fi
 
 	DEBFILE="$PKGNAME"_"$VERSION"-"$RELEASE"_"$DPKGARCH".deb
 
@@ -85,7 +95,7 @@ Architecture: $DPKGARCH
 Maintainer: $MAINTAINER
 Section: admin
 Priority: extra
-Depends: openssh-server, powershell
+Depends: $DEPENDS
 Description: PowerShell Remote Access for OpenSSH
 EOF
 
@@ -94,11 +104,11 @@ EOF
 		(
 			set -e
 			cd $d
-			if test -f control
+			if test -z "$(find . -type f)"
 			then
-				tar --owner=0 --group=0 --create --gzip --file ../$d.tar.gz control postinst postrm
-			else
 				tar --owner=0 --group=0 --create --gzip --file ../$d.tar.gz --files-from /dev/null
+			else
+				find * -type f | tar --owner=0 --group=0 --create --gzip --file ../$d.tar.gz --files-from -
 			fi
 		)
 	done
@@ -112,19 +122,49 @@ fi
 
 if rpmbuild --version 2>/dev/null
 then
-	cat >rpm.spec <<EOF
+	if test -d data/etc
+	then
+		REQUIRES="powershell, openssh-server >= 7.3"
+	else
+		REQUIRES="powershell, openssh-server"
+	fi
+
+	(
+		cat <<EOF
 Summary: PowerShell Remote Access for OpenSSH
 Name: $PKGNAME
 Version: $VERSION
 Release: $RELEASE
 Group: Applications/System
 License: GPL
-Requires: powershell, openssh-server
+Requires: $REQUIRES
 BuildArch: noarch
 Prefix: /
 %description
 Enable remote PowerShell access for OpenSSH
 
+EOF
+
+	if test -d data/etc
+	then
+		cat << EOF
+%files
+%defattr(-,root,root)
+EOF
+
+		(
+			cd data
+			find etc -type f | while read N
+			do
+				echo "/$N"
+			done
+		)
+
+		cat << EOF
+%clean
+EOF
+	else
+		cat << EOF
 %post
 if test "\$1" -eq 1
 then
@@ -155,13 +195,14 @@ fi
 %files
 %clean
 EOF
+		fi
+	) > rpm.spec
 
 	PWD=$(pwd)
 	rpmbuild --buildroot "$PWD/data" --define "_rpmdir $PWD/rpms" -bb "$PWD/rpm.spec"
 
 	find rpms -type f -name "*.rpm" | while read N
 	do
-		rpm -qlvp "$N"
 		mv "$N" .
 		basename "$N"
 	done
