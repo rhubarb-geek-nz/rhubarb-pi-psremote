@@ -8,7 +8,7 @@ Installing the package adds the line, removing the package removes the line.
 
 Package dependencies include both `openssh-server` and `powershell`.
 
-The [package.sh](package.sh) script creates both `deb` and `rpm` packages.
+The [package.sh](linux/package.sh) script creates both `deb` and `rpm` packages.
 
 The `openssh-server` will need restarting after installing the package.
 
