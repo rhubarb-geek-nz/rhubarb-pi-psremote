@@ -1,0 +1,10 @@
+#!/bin/sh -e
+# Copyright (c) 2023 Roger Brown.
+# Licensed under the MIT License.
+
+if grep "^Subsystem powershell /usr/bin/pwsh -sshs -nologo\$" /etc/ssh/sshd_config
+then
+	:
+else
+	echo "Subsystem powershell /usr/bin/pwsh -sshs -nologo" >> /etc/ssh/sshd_config 
+fi

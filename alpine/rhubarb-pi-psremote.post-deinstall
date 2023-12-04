@@ -1,0 +1,10 @@
+#!/bin/sh -e
+# Copyright (c) 2023 Roger Brown.
+# Licensed under the MIT License.
+
+if grep -v "^Subsystem powershell /usr/bin/pwsh -sshs -nologo\$" /etc/ssh/sshd_config > "/etc/ssh/sshd_config.$$.remove"
+then
+	:
+fi
+
+mv "/etc/ssh/sshd_config.$$.remove" /etc/ssh/sshd_config
