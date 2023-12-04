@@ -1,0 +1,47 @@
+# Maintainer: rhubarb-geek-nz@users.sourceforge.net
+pkgname=rhubarb-pi-psremote
+pkgver=1.0
+pkgrel=1
+epoch=
+pkgdesc="PowerShell Remote Access for OpenSSH"
+arch=('any')
+url="https://github.com/rhubarb-geek-nz/rhubarb-pi-psremote"
+license=('MIT')
+groups=()
+depends=('openssh' 'powershell')
+makedepends=()
+checkdepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+install=
+changelog=
+noextract=()
+md5sums=()
+validpgpkeys=()
+
+prepare() {
+	mkdir "$pkgname-$pkgver"
+}
+
+build() {
+	cd "$pkgname-$pkgver"
+	mkdir -p "etc/ssh/sshd_config.d"
+	(
+		umask 333
+		cat << EOF > "etc/ssh/sshd_config.d/50-rhubarb-pi-psremote.conf"
+Subsystem powershell /usr/bin/pwsh -sshs -nologo
+EOF
+	)
+}
+
+check() {
+	:
+}
+
+package() {
+	tar cf - -C "$pkgname-$pkgver" etc | tar xf - -C "$pkgdir"
+}
